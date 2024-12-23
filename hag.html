@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Konversi TXT ke VCF</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+    <style>
+        /* Gaya CSS yang lebih menarik */
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 90%;
+            margin: 30px auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        .header {
+            text-align: center;
+            padding: 10px 0;
+            border-bottom: 3px solid #ff9a9e;
+        }
+        .header span {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff6f61;
+        }
+        .form-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-section table {
+            width: 100%;
+        }
+        .form-section table td {
+            padding: 10px;
+        }
+        .form-section table input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .process-button {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .process-button button {
+            background: #ff6f61;
+            color: #fff;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s ease-in-out;
+            font-size: 16px;
+        }
+        .process-button button:hover {
+            background: #ff4f4f;
+            box-shadow: 0 6px 15px rgba(255, 111, 97, 0.4);
+        }
+        .table-section {
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .table-section table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-section th, 
+        .table-section td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        .table-section th {
+            background: #ff6f61;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span>Konversi TXT ke VCF</span>
+        </div>
+
+        <div class="form-section">
+            <table>
+                <tr>
+                    <td>Pilih File TXT (tanpa batas):</td>
+                    <td>
+                        <input type="file" id="txtFiles" accept=".txt" multiple />
+                    </td>
+                </tr>
+                <tr>
+                    <td>Nama Kontak:</td>
+                    <td>
+                        <input type="text" id="contactName" placeholder="Masukkan nama kontak" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>Jumlah Kontak per File:</td>
+                    <td>
+                        <input type="number" id="contactsPerFile" min="1" placeholder="Jumlah kontak per file" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>Format Awalan Nomor:</td>
+                    <td>
+                        <input type="text" id="numberPrefix" value="" placeholder="Masukkan awalan nomor (default: +62)" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>Mulai dari Baris:</td>
+                    <td>
+                        <input type="number" id="startRow" min="1" placeholder="Masukkan baris awal" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>Sampai Akhir:</td>
+                    <td>
+                        <input type="checkbox" id="selectToEnd" />
+                    </td>
+                </tr>
+            </table>
+            <div class="process-button">
+                <button onclick="loadTxt()">Tampilkan Data</button>
+            </div>
+            <div class="process-button">
+                <button onclick="convertToVCF()">Konversi ke VCF</button>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <table id="dataTable">
+                <thead>
+                    <tr id="tableHeader">
+                        <th>Baris</th>
+                        <th>Pilih</th>
+                        <!-- Kolom untuk setiap file akan ditambahkan di sini -->
+                    </tr>
+                </thead>
+                <tbody id="dataRows">
+                    <!-- Data dari file TXT akan ditampilkan di sini -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let numbers = [];
+        let fileNames = [];
+
+        function loadTxt() {
+    const fileInput = document.getElementById('txtFiles');
+    const files = fileInput.files;
+
+    if (files.length === 0) {
+        alert('Silakan pilih file TXT.');
+        return;
+    }
+
+    console.log(`Jumlah file yang diunggah: ${files.length}`); // Debugging untuk jumlah file
+    const tableBody = document.getElementById('dataRows');
+    const tableHeader = document.getElementById('tableHeader');
+    tableBody.innerHTML = '';  
+    tableHeader.innerHTML = '<th>Baris</th><th>Pilih</th>'; 
+    numbers = Array.from({ length: files.length }, () => []);
+    fileNames = Array.from(files, file => file.name);
+
+    const filePromises = Array.from(files).map((file, index) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const lines = e.target.result.split('\n').map(line => line.trim()).filter(line => line);
+                numbers[index] = lines;
+                resolve();
+            };
+            reader.onerror = function () {
+                reject(new Error(`Gagal membaca file: ${file.name}`));
+            };
+            reader.readAsText(file);
+        });
+    });
+
+    Promise.all(filePromises)
+        .then(() => {
+            console.log(`Semua file berhasil diproses: ${fileNames.length} file`); // Debugging jumlah file
+            fileNames.forEach(fileName => {
+                const headerCell = document.createElement('th');
+                headerCell.textContent = fileName;
+                tableHeader.appendChild(headerCell);
+            });
+
+            const maxRows = Math.max(...numbers.map(arr => arr.length));
+            for (let i = 0; i < maxRows; i++) {
+                const row = document.createElement('tr');
+                const rowNumberCell = document.createElement('td');
+                rowNumberCell.textContent = i + 1;
+                row.appendChild(rowNumberCell);
+
+                const checkboxCell = document.createElement('td');
+                checkboxCell.innerHTML = `<input type="checkbox" value="${i}" checked />`;
+                row.appendChild(checkboxCell);
+
+                numbers.forEach(numArray => {
+                    const cell = document.createElement('td');
+                    cell.textContent = numArray[i] || '';
+                    row.appendChild(cell);
+                });
+
+                tableBody.appendChild(row);
+            }
+        })
+        .catch(error => {
+            console.error('Terjadi kesalahan saat memproses file:', error);
+            alert('Terjadi kesalahan saat memproses file. Periksa file dan coba lagi.');
+        });
+}
+
+async function convertToVCF() {
+    const startRow = parseInt(document.getElementById('startRow').value) || 1;
+    const selectToEnd = document.getElementById('selectToEnd').checked;
+    const contactName = document.getElementById('contactName').value || 'Contact';
+    const contactsPerFile = parseInt(document.getElementById('contactsPerFile').value) || Infinity;
+    const numberPrefix = document.getElementById('numberPrefix').value || '+62';
+
+    downloadedFiles = 0; // Reset penghitung file yang diunduh
+
+    for (let fileIndex = 0; fileIndex < numbers.length; fileIndex++) {
+        const numberArray = numbers[fileIndex];
+        let vcfData = '';
+        let fileCount = 0;
+        let countInFile = 0;
+
+        const endRow = selectToEnd ? numberArray.length : Math.min(startRow + contactsPerFile - 1, numberArray.length);
+
+        for (let index = startRow - 1; index < numberArray.length; index++) {
+            const number = numberArray[index];
+            if (number) {
+                const formattedNumber = number.startsWith('+') ? number : numberPrefix + number.replace(/[^0-9]/g, '');
+                const displayName = `${contactName} ${index + 1}`;
+
+                vcfData += `BEGIN:VCARD\nVERSION:3.0\nFN:${displayName}\nTEL;TYPE=CELL:${formattedNumber}\nEND:VCARD\n`;
+                countInFile++;
+
+                if (countInFile >= contactsPerFile) {
+                    await saveVCF(vcfData, fileNames[fileIndex].replace('.txt', `_${++fileCount}.vcf`));
+                    vcfData = '';
+                    countInFile = 0;
+                }
+            }
+        }
+
+        if (vcfData) {
+            await saveVCF(vcfData, fileNames[fileIndex].replace('.txt', `_${++fileCount}.vcf`));
+        }
+    }
+
+    alert(`Proses selesai! Total file diunduh: ${downloadedFiles}`);
+}
+
+
+let downloadedFiles = 0; // Penghitung file yang diunduh
+
+async function saveVCF(vcfData, fileName) {
+    const blob = new Blob([vcfData], { type: 'text/vcard' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Tambahkan file ke penghitung setelah unduhan
+    downloadedFiles++;
+    console.log(`File diunduh: ${fileName} (${downloadedFiles})`);
+
+    // Delay untuk menghindari konflik unduhan simultan
+    await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+
+
+    </script>
+</body>
+</html>
